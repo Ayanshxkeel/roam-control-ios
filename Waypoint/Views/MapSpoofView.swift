@@ -3,6 +3,7 @@ import SwiftUI
 
 @MainActor
 struct MapSpoofView: View {
+    var openSupport: () -> Void
     @EnvironmentObject var model: AppModel
 
     @ObservedObject var pathMonitor = CellularPathMonitor.shared
@@ -12,6 +13,11 @@ struct MapSpoofView: View {
     @State var visibleRegion: MKCoordinateRegion
     @State var searchText = ""
     @State var isSearching = false
+    @State var isRoutePlannerExpanded = false
+    @State var plannedRouteLine: MKPolyline?
+    @State var routePreviewPoint: CLLocationCoordinate2D?
+    @AppStorage("favoritePinName") var favoritePinName = ""
+    @AppStorage("favoritePin") var favoritePinData = Data()
     @State var isSearchPresented = false
     @State var searchTask: Task<Void, Never>?
     @State var searchOperationID: UUID?
@@ -23,7 +29,8 @@ struct MapSpoofView: View {
     private static let storedCoordinateKey = "selectedCoordinate"
     private static let defaultCoordinate = SelectedCoordinate(latitude: 48.8566, longitude: 2.3522)
 
-    init() {
+    init(openSupport: @escaping () -> Void) {
+        self.openSupport = openSupport
         let initial = Self.loadStoredCoordinate() ?? Self.defaultCoordinate
         let region = MKCoordinateRegion(
             center: initial.coreLocationCoordinate,

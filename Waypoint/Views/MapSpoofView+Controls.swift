@@ -15,6 +15,15 @@ extension MapSpoofView {
 
                 Spacer()
 
+                Button {
+                    let favorite = try? JSONDecoder().decode(SelectedCoordinate.self, from: favoritePinData)
+                    favoritePinData = favorite == selection ? Data() : ((try? JSONEncoder().encode(selection)) ?? Data())
+                } label: {
+                    let favorite = try? JSONDecoder().decode(SelectedCoordinate.self, from: favoritePinData)
+                    Image(systemName: favorite == selection ? "star.fill" : "star")
+                }
+                .accessibilityLabel("Toggle favorite pin")
+
                 if isSearching {
                     ProgressView()
                 }
@@ -52,6 +61,14 @@ extension MapSpoofView {
                     .disabled(model.isChangingSimulation || model.isCellularLaunchRunning)
                 }
             }
+
+            Button {
+                isRoutePlannerExpanded = true
+            } label: {
+                Label("Route planning", systemImage: "chevron.down")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
 
             if model.simulatedCoordinate != nil {
                 cellularHandoffControl
@@ -159,7 +176,7 @@ extension MapSpoofView {
         if model.simulatedCoordinate != nil { return "Move spoof here" }
         switch pathMonitor.activeConnection {
         case .wifi:
-            return "Start spoofing"
+            return "Start location"
         case .cellular:
             return "Start on mobile data"
         case .unknown:

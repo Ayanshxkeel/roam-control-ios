@@ -22,11 +22,31 @@ extension MapSpoofView {
             .padding(.horizontal)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            controls
+            if isRoutePlannerExpanded {
+                RoutePlannerView(defaultOrigin: model.simulatedCoordinate, defaultDestination: selection, close: {
+                    isRoutePlannerExpanded = false
+                    routePreviewPoint = nil
+                }, showPreviewPoint: { routePreviewPoint = $0 }, showRoute: { line in
+                    plannedRouteLine = line
+                    if let line { cameraPosition = .rect(line.boundingMapRect.insetBy(dx: -500, dy: -500)) }
+                })
+            } else {
+                controls
+            }
         }
-        .navigationTitle("Waypoint")
+        .navigationTitle("Roam Control")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Support", action: openSupport)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isRoutePlannerExpanded = true
+                } label: {
+                    Label("Plan a route", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     model.isSetupPresented = true
@@ -103,6 +123,29 @@ extension MapSpoofView {
 
     private var searchSuggestions: some View {
         Group {
+            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               let favorite = try? JSONDecoder().decode(SelectedCoordinate.self, from: favoritePinData) {
+                Button {
+                    select(favorite.coreLocationCoordinate)
+                    isSearchPresented = false
+                } label: {
+                    Label(favoritePinName.isEmpty ? "Favorite pin" : favoritePinName, systemImage: "star.fill")
+                }
+            }
+            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               let recent = model.lastSimulatedLocation {
+                Button {
+                    select(recent.coreLocationCoordinate)
+                    isSearchPresented = false
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Last simulated location", systemImage: "clock.arrow.circlepath")
+                        Text(String(format: "%.5f, %.5f", recent.latitude, recent.longitude))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(model.isCellularHandoffInProgress)
+            }
             if placeSearch.isCompleting && placeSearch.suggestions.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -152,6 +195,12 @@ extension MapSpoofView {
     private var map: some View {
         MapReader { proxy in
             Map(position: $cameraPosition, interactionModes: .all) {
+                if let routePreviewPoint {
+                    Marker("Route preview", coordinate: routePreviewPoint).tint(.orange)
+                }
+                if let plannedRouteLine {
+                    MapPolyline(plannedRouteLine).stroke(.cyan, lineWidth: 5)
+                }
                 if let active = model.simulatedCoordinate,
                    active != selection {
                     Marker("Active spoof", coordinate: active.coreLocationCoordinate)

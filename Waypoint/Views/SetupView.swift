@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 struct SetupView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("favoritePin") private var favoritePinData = Data()
+    @AppStorage("favoritePinName") private var favoritePinName = ""
+    @State private var clearFavorite = false
     @State private var isChoosingPairingFile = false
     @State private var isSideStoreConfirmationPresented = false
 
@@ -20,6 +23,18 @@ struct SetupView: View {
 
     var body: some View {
         List {
+            if !favoritePinData.isEmpty {
+                Section("Saved location") {
+                    TextField("Favorite name", text: $favoritePinName)
+                    Button("Remove favorite", role: .destructive) { clearFavorite = true }
+                        .confirmationDialog("Remove favorite?", isPresented: $clearFavorite) {
+                            Button("Remove favorite", role: .destructive) {
+                                favoritePinData = Data()
+                                favoritePinName = ""
+                            }
+                        }
+                }
+            }
             Section {
                 setupRow(
                     title: "Pairing Record",

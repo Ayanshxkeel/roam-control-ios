@@ -47,6 +47,7 @@ extension AppModel {
             let sessionID = UUID()
             simulationSessionID = sessionID
             simulatedCoordinate = coordinate
+            rememberSimulatedLocation(coordinate)
             UIApplication.shared.isIdleTimerDisabled = true
             SimulationNotificationMonitor.shared.beginSession(sessionID)
 
@@ -76,6 +77,24 @@ extension AppModel {
             }
         }
         isChangingSimulation = false
+    }
+
+    func updateRoutePosition(_ coordinate: SelectedCoordinate, session: UUID) async -> Bool {
+        guard simulationSessionID == session, !isChangingSimulation,
+              !cellularHandoffState.pausesLocationWrites else { return false }
+        resendTask?.cancel()
+        resendTask = nil
+        isChangingSimulation = true
+        defer { isChangingSimulation = false }
+        do {
+            try await bridge.setLocation(coordinate)
+            simulatedCoordinate = coordinate
+            SimulationNotificationMonitor.shared.recordHeartbeat(for: session)
+            return true
+        } catch {
+            simulationConnectionFailed(error, notificationSessionID: session)
+            return false
+        }
     }
 
     func stopSimulation() async {

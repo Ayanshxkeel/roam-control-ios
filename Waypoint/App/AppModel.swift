@@ -10,6 +10,14 @@ final class AppModel: ObservableObject {
     @Published var isPreparing = false
     @Published var preparationMessage = ""
     @Published var simulatedCoordinate: SelectedCoordinate?
+    @Published private(set) var lastSimulatedLocation = UserDefaults.standard.data(forKey: "lastSimulatedLocation")
+        .flatMap { try? JSONDecoder().decode(SelectedCoordinate.self, from: $0) }
+
+    func rememberSimulatedLocation(_ coordinate: SelectedCoordinate) {
+        guard let data = try? JSONEncoder().encode(coordinate) else { return }
+        UserDefaults.standard.set(data, forKey: "lastSimulatedLocation")
+        lastSimulatedLocation = coordinate
+    }
     @Published var isChangingSimulation = false
     @Published var simulationEvent: SimulationEvent?
     @Published var cellularHandoffState: CellularHandoffState = .idle
