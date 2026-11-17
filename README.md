@@ -1,10 +1,30 @@
 # Roam Control
 
-Roam Control is an iPhone location simulation app for testing on a device you own or control. It supports fixed pins and timed walking, cycling, and driving routes.
+Roam Control is an open-source iPhone app for testing location-based experiences on a device you own or control. Set a fixed location or run a simulated trip to see how an app behaves as the location changes, without physically traveling the route.
 
-**[Set up Roam Control](docs/SETUP.md)** · **[Download the latest beta](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.1)**
+**[Download the iPhone beta](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.1)** · **[Set up Roam Control](docs/SETUP.md)**
 
-This release is an unsigned iPhone IPA. The setup guide walks through signing, installation, and the approvals required on each iPhone.
+## Who it’s for
+
+- **iOS developers** testing map pins, location-dependent screens, and changes in position.
+- **QA testers** reproducing a trip, checking how an app handles a pause, or testing what happens when a session is interrupted.
+- **Students and hobbyists** exploring route planning and location simulation on their own iPhones.
+
+## What you can do
+
+- **Test a fixed location.** Search for an address or drop a pin, hold that position, and use **Stop & Restore** to end the simulation.
+- **Plan a walking, cycling, or driving trip.** Preview the route on the map, compare alternatives when available, and scrub through the trip before starting.
+- **Schedule a departure.** Choose whether the phone should report its real location or hold the route origin while waiting. The planner includes a countdown and optional reminder.
+- **Inspect driving pace.** The speed profile uses road limits where available, with a 40 km/h fallback for missing data. It models acceleration and braking for sharper turns and shows the estimated pace and arrival during playback.
+- **Control and repeat a trip.** Pause, resume, add a timed stop, or retrace a completed route. Save a favorite pin, reuse recent trip settings, or prepare a new route from the last saved point after an interruption.
+
+For example, a tester can preview a downtown drive, add a two-minute stop, and check how their map responds when movement resumes. They can repeat the same trip from **Recent routes**.
+
+## What you need
+
+The public beta is an unsigned iPhone IPA. Installation requires a signing tool such as iloader or SideStore, Developer Mode, LocalDevVPN, and a pairing record for your own iPhone. Follow the [guided setup](docs/SETUP.md), then verify a fixed pin and **Stop & Restore** before trying a route.
+
+Compatibility and background behavior can vary by iOS version and device. Scheduled departures while the phone is locked are unverified. Speed limits can be incomplete, and the driving profile does not use live traffic signal states.
 
 ## Build from source
 
