@@ -4,6 +4,15 @@ Roam Control is an open-source iPhone app for testing location-based experiences
 
 **[Download the iPhone beta](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.1)** · **[Set up Roam Control](docs/SETUP.md)**
 
+## Download and run on your iPhone
+
+1. Download **Roam-Control-Final.ipa** from the [release page](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.1).
+2. Set up SideStore and LocalDevVPN using the linked installation guides.
+3. Connect and unlock your iPhone, then use **Import IPA** in iloader to sign and install the download.
+4. Enable Developer Mode, complete device pairing, and verify a fixed pin before running a route.
+
+The [complete step-by-step setup guide](docs/SETUP.md) covers every stage, first launch, route playback, updates, and troubleshooting.
+
 ## Who it’s for
 
 - **iOS developers** testing map pins, location-dependent screens, and changes in position.
