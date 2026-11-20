@@ -18,6 +18,19 @@ On your computer, open the [Roam Control release page](https://github.com/Ayansh
 
 The Source code ZIP and TAR files are for developers. Choose the **.ipa** file to install the app.
 
+### Download and open iloader on your Mac
+
+1. Click the [official iloader Mac installer download](https://github.com/nab138/iloader/releases/latest/download/iloader-darwin-universal.dmg).
+2. If your browser asks permission to download, click **Allow**.
+3. Wait for the download to finish, then open **Finder → Downloads**.
+4. Double-click **iloader-darwin-universal.dmg**.
+5. Drag **iloader** into **Applications**. If the installer window has no Applications shortcut, drag the app onto **Applications** in Finder’s sidebar.
+6. Open **Finder → Applications** and double-click **iloader**.
+7. If macOS asks whether to open the downloaded app, click **Open**. If a different security message appears, check the [official iloader instructions](https://github.com/nab138/iloader#readme).
+8. If iloader offers an update, install it and reopen iloader.
+
+For Windows or Linux, select the appropriate installer from the [official iloader releases page](https://github.com/nab138/iloader/releases).
+
 ### 2. Install SideStore and prepare this iPhone
 
 For a first-time user, SideStore provides a way to install and refresh the app and to supply its pairing record.
