@@ -7,7 +7,7 @@ struct WaypointApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            AccountGate()
                 .environmentObject(model)
                 .onOpenURL { model.handleIncomingURL($0) }
                 .task { model.refreshLocalState() }

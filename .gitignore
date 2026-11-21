@@ -65,3 +65,5 @@ logs/
 /website/.npm-cache/
 /website/design-qa.md
 /website/AGENTS.md
+
+/backend/vercel/node_modules

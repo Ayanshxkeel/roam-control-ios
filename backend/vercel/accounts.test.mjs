@@ -1,0 +1,34 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {PGlite} from '@electric-sql/pglite';
+import {scryptSync} from 'node:crypto';
+import {createHandler} from './api/roam-accounts.mjs';
+test('cross-device sessions, owner access, messages and deletion',async()=>{
+ process.env.DATABASE_URL='test';process.env.ROAM_OWNER_EMAIL='owner@example.test';
+ const passwords=['owner-test-one','owner-test-two','owner-test-three'];
+ process.env.ROAM_OWNER_HASHES=JSON.stringify(passwords.map((p,i)=>({salt:'test-salt-'+i,hash:scryptSync(p,'test-salt-'+i,64).toString('hex')})));
+ const db=new PGlite();
+ const adapter={query:async(sql,args)=>{if(!args&&sql.includes('CREATE TABLE')){await db.exec(sql);return {rows:[]};}const r=await db.query(sql,args);return {...r,rowCount:r.affectedRows};}};
+ const handler=createHandler(adapter);
+ async function call(body,token){let status,data;await handler({method:'POST',body,headers:{authorization:token?'Bearer '+token:'','x-vercel-forwarded-for':body.email||'local'},socket:{}},{setHeader(){},status(s){status=s;return this;},json(d){data=d;}});return {status,...data};}
+ const a=await call({action:'signup',email:'a@example.test',password:'test-password-a',username:'Alice',tiktok:'alice',is_owner:true});assert.equal(a.status,201);assert.equal(a.profile.is_owner,false);assert.ok(!('hash' in a.profile));
+ const b=await call({action:'signup',email:'b@example.test',password:'test-password-b',username:'Bob'});assert.equal(b.status,201);
+ assert.equal((await call({action:'signup',email:'a@example.test',password:'test-password-a',username:'Dup'})).status,409);
+ assert.equal((await call({action:'signin',email:'a@example.test',password:'wrong-password'})).status,401);
+ const a2=await call({action:'signin',email:'a@example.test',password:'test-password-a'});assert.equal(a2.status,200);
+ for(const action of ['list','delete','message'])assert.equal((await call({action,id:b.profile.id,body:'bad'},a.token)).status,403);
+ assert.equal((await call({action:'signup',email:'owner@example.test',password:'test-password',username:'Fake owner'})).status,403);
+ assert.equal((await call({action:'owner-signin',email:'owner@example.test',passwords:['bad','bad','bad']})).status,401);
+ const o=await call({action:'owner-signin',email:'owner@example.test',passwords});assert.equal(o.status,200);assert.equal(o.profile.is_owner,true);
+ assert.equal((await call({action:'list'},o.token)).members.length,2);
+ assert.equal((await call({action:'message',id:a.profile.id,body:'Hello Alice'},o.token)).status,201);
+ assert.equal((await call({action:'status'},a2.token)).messages[0].body,'Hello Alice');
+ assert.equal((await call({action:'status'},b.token)).messages.length,0);
+ assert.equal((await call({action:'delete',id:a.profile.id},o.token)).status,200);
+ for(const token of [a.token,a2.token])assert.equal((await call({action:'status'},token)).status,401);
+ assert.equal((await db.query('SELECT * FROM roam_messages')).rows.length,0);
+ assert.equal((await call({action:'signin',email:'a@example.test',password:'test-password-a'})).status,401);
+ assert.equal((await call({action:'status'},b.token)).status,200);
+ await call({action:'signout'},o.token);assert.equal((await call({action:'list'},o.token)).status,401);
+ await db.close();
+});
