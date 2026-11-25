@@ -43,6 +43,9 @@ struct MapSpoofView: View {
     @State var searchText = ""
     @State var isSearching = false
     @State var isRoutePlannerExpanded = false
+    @State var safetyDestinationPresented = false
+    @State var approvedSafetyDestination = false
+    @State var pendingSpoofCoordinate: SelectedCoordinate?
     @State var plannedRouteLine: MKPolyline?
     @State var routePreviewPoint: CLLocationCoordinate2D?
     @AppStorage("favoritePinName") var favoritePinName = ""

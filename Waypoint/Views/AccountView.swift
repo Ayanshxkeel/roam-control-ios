@@ -174,6 +174,7 @@ struct AccountMenu: View {
 private struct AccountPanel: View {
     @EnvironmentObject var accounts: AccountStore
     @Environment(\.dismiss) var dismiss
+    @State private var destinationMember: MemberProfile?
     @State private var pendingCommunityRemoval: MemberProfile?
     @State private var inboxPresented = false
     @State private var ownerMapPresented = false
@@ -201,7 +202,7 @@ private struct AccountPanel: View {
                     }
                 }
                 if !accounts.notice.isEmpty { Text(accounts.notice).foregroundStyle(.orange) }
-                Section("Messages from the builder") {
+                Section(accounts.profile?.is_owner == true ? "Destination reports" : "Messages from the builder") {
                     Button { inboxPresented = true } label: {
                         HStack { Label("Inbox", systemImage: "tray.fill"); Spacer(); if !accounts.unreadMessages.isEmpty { Text("\(accounts.unreadMessages.count) unread").foregroundStyle(.red) } }
                     }
@@ -219,7 +220,8 @@ private struct AccountPanel: View {
                     Section("Owner · \(accounts.members.count) accounts") {
                         ForEach(accounts.members) { member in
                             VStack(alignment: .leading, spacing: 8) {
-                                MemberPresenceSummary(member: member)
+                                Button { destinationMember = member } label: { MemberPresenceSummary(member: member) }.buttonStyle(.plain)
+                                Button("View profile & destination reports") { destinationMember = member }
                                 Text(member.email).textSelection(.enabled)
                                 if !member.tiktok.isEmpty { Text("TikTok: \(member.tiktok)") }
                                 if !member.instagram.isEmpty { Text("Instagram: \(member.instagram)") }
@@ -264,6 +266,7 @@ private struct AccountPanel: View {
                 if !inboxPresented { MessageArrivalBanner(openInbox: { inboxPresented = true }).environmentObject(accounts) }
             }
             .sheet(isPresented: $inboxPresented) { MessageInboxView().environmentObject(accounts) }
+            .sheet(item: $destinationMember) { member in SafetyUserProfileView(member: member).environmentObject(accounts) }
             .sheet(isPresented: $ownerMapPresented) { OwnerPresenceMap().environmentObject(accounts) }
             .sheet(isPresented: $broadcastPresented) { BroadcastComposer().environmentObject(accounts) }
             .sheet(item: $recipient) { member in

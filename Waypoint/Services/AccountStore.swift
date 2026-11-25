@@ -27,6 +27,14 @@ struct OwnerMessage: Codable, Identifiable {
     let id: UUID
     let body: String
     let created_at: String
+    var subject_user_id: UUID? = nil
+    var is_safety_report: Bool? = nil
+}
+struct SafetyReport: Decodable, Identifiable {
+    let id: UUID
+    let destination: String
+    let kind: String
+    let created_at: String
 }
 private struct AccountSession: Codable {
     let access_token: String
@@ -98,6 +106,7 @@ private struct AccountSession: Codable {
         var profile: MemberProfile?
         var members: [MemberProfile]?
         var messages: [OwnerMessage]?
+        var reports: [SafetyReport]?
     }
     private func request(_ action: String, body: [String: Any] = [:], authenticated: Bool = true) async throws -> Reply {
         guard configured, let url = URL(string: base) else { throw failure("Online accounts are awaiting server setup.") }
@@ -343,6 +352,22 @@ private struct AccountSession: Codable {
         } catch {
             guard session?.access_token == expectedSession.access_token, !Task.isCancelled else { return }
             inboxError = "Could not refresh messages: " + error.localizedDescription
+        }
+    }
+
+    func submitDestination(_ destination: String, kind: String, requestID: UUID) async throws {
+        _ = try await request("safety-submit", body: ["destination": destination, "kind": kind, "request_id": requestID.uuidString])
+    }
+    func fetchMember(_ id: UUID) async throws -> MemberProfile {
+        guard let member = try await request("owner-profile", body: ["id": id.uuidString]).profile else { throw failure("Account no longer available.") }
+        return member
+    }
+    func safetyHistory(for id: UUID) async throws -> [SafetyReport] {
+        var all: [SafetyReport] = []
+        while true {
+            let page = try await request("safety-history", body: ["id": id.uuidString, "offset": all.count]).reports ?? []
+            all += page
+            if page.count < 100 { return all }
         }
     }
 

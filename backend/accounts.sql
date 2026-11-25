@@ -31,3 +31,11 @@ ALTER TABLE roam_messages ADD COLUMN IF NOT EXISTS broadcast_id uuid REFERENCES 
 CREATE UNIQUE INDEX IF NOT EXISTS roam_broadcast_recipient ON roam_messages(broadcast_id,recipient_id);
 CREATE INDEX IF NOT EXISTS roam_message_recipient ON roam_messages(recipient_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS roam_limits (bucket text NOT NULL,window_id bigint NOT NULL,count int NOT NULL,PRIMARY KEY(bucket,window_id));
+
+CREATE TABLE IF NOT EXISTS roam_safety_reports (
+ id uuid PRIMARY KEY, account_id uuid REFERENCES roam_accounts(id) ON DELETE CASCADE,
+ destination text NOT NULL CHECK(length(destination) BETWEEN 3 AND 1000),
+ kind text NOT NULL CHECK(kind IN ('fixed','driving','walking','cycling')),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS roam_safety_user ON roam_safety_reports(account_id,created_at DESC);

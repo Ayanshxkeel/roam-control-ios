@@ -4,6 +4,11 @@ import UserNotifications
 
 struct RoutePlannerView: View {
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var accounts: AccountStore
+    private enum SafetyAction { case route(reverse: Bool), hold(SelectedCoordinate) }
+    @State private var pendingSafetyAction: SafetyAction?
+    @State private var safetyPresented = false
+    @State private var safetyApproved = false
     @State private var collapsed = false
     @State private var stopRequested = false
     private let routeActivityChanged: (Bool) -> Void
@@ -176,10 +181,7 @@ struct RoutePlannerView: View {
                     Button("Prepare to resume") { loadSaved(saved, resume: true) }
                     if let point = saved.lastPoint {
                         Button("Hold last position") {
-                            Task {
-                                await model.startSimulation(at: point)
-                                if model.simulatedCoordinate == point { interruptedData = Data() }
-                            }
+                            pendingSafetyAction = .hold(point); safetyApproved = false; safetyPresented = true
                         }
                     }
                     Button("Restore real location", role: .destructive) {
@@ -384,8 +386,7 @@ struct RoutePlannerView: View {
                         .buttonStyle(.bordered)
                 } else if arrived {
                     Button("Return via same route") {
-                        reversed.toggle()
-                        requestDeviceRoute()
+                        requestDeviceRoute(reverse: true)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -408,6 +409,9 @@ struct RoutePlannerView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28))
         .clipShape(RoundedRectangle(cornerRadius: 28))
         .padding(.horizontal, 8)
+        .sheet(isPresented: $safetyPresented, onDismiss: runApprovedSafetyAction) {
+            SafetyDestinationView(kind: safetyKind) { safetyApproved = true }.environmentObject(accounts)
+        }
         .confirmationDialog("Clear recent routes?", isPresented: $clearHistory) {
             Button("Clear recent routes", role: .destructive) {
                 recentData = (try? JSONEncoder().encode(recents.filter { $0.pinned == true })) ?? Data()
@@ -482,7 +486,25 @@ struct RoutePlannerView: View {
         return customPace ? route.distance / (speed / 3.6) : route.expectedTravelTime
     }
 
-    private func requestDeviceRoute() {
+    private var safetyKind: String {
+        if case .hold = pendingSafetyAction { return "fixed" }
+        return mode.rawValue.lowercased()
+    }
+    private func requestDeviceRoute(reverse: Bool = false) {
+        pendingSafetyAction = .route(reverse: reverse); safetyApproved = false; safetyPresented = true
+    }
+    private func runApprovedSafetyAction() {
+        guard safetyApproved, let action = pendingSafetyAction else { pendingSafetyAction = nil; return }
+        safetyApproved = false; pendingSafetyAction = nil
+        switch action {
+        case .hold(let point):
+            Task { await model.startSimulation(at: point); if model.simulatedCoordinate == point { interruptedData = Data() } }
+        case .route(let reverse):
+            if reverse { reversed.toggle() }
+            launchApprovedRoute()
+        }
+    }
+    private func launchApprovedRoute() {
         if departure > Date() {
             choosingWaitingLocation = true
         } else {

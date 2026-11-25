@@ -89,3 +89,9 @@ The earlier Community map response dropped every pin ten minutes after its last 
 Existing members keep the prior ten-minute limit for the owner until they review and accept the updated Community sharing notice. New Build 25 joins include the new disclosure and consent flag. Older clients do not set this flag. Restoring eligibility after removal does not restore this consent. The UI offers Review last-known sharing to existing members, and the Community button opens that review when needed.
 
 Custom username labels now appear directly under avatars on the integrated Community map and private owner activity map; automatic MapKit titles are hidden to avoid duplicates. Inactive community pins show Last known, and tapping displays the last-report time. Tests cover legacy consent expiry, owner-only retention, ordinary-member expiry, and sign-out revoking the session without deleting the consented last-known pin.
+
+## Destination check-ins (Build 30)
+
+Before starting a new fixed spoof or route, users submit their actual destination as text. The form explains that this is stored privately for the owner, and can be cancelled without starting the spoof. An internet connection is required to submit. These reports are user-entered, unverified information, not live GPS or an emergency service. They never appear on Community maps.
+
+The owner receives new reports through the existing in-app inbox and unread badge while online. Open an inbox report’s user profile, or tap **View profile & destination reports** in the owner account list, to see that user’s report history. No background push delivery is provided. Account deletion removes the user’s reports.

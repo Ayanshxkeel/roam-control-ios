@@ -36,6 +36,13 @@ CREATE TABLE IF NOT EXISTS roam_broadcasts (id uuid PRIMARY KEY, body text NOT N
 ALTER TABLE roam_messages ADD COLUMN IF NOT EXISTS broadcast_id uuid REFERENCES roam_broadcasts(id);
 CREATE UNIQUE INDEX IF NOT EXISTS roam_broadcast_recipient ON roam_messages(broadcast_id,recipient_id);
 CREATE INDEX IF NOT EXISTS roam_message_recipient ON roam_messages(recipient_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS roam_safety_reports (
+ id uuid PRIMARY KEY, account_id uuid REFERENCES roam_accounts(id) ON DELETE CASCADE,
+ destination text NOT NULL CHECK(length(destination) BETWEEN 3 AND 1000),
+ kind text NOT NULL CHECK(kind IN ('fixed','driving','walking','cycling')),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS roam_safety_user ON roam_safety_reports(account_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS roam_limits (bucket text NOT NULL,window_id bigint NOT NULL,count int NOT NULL,PRIMARY KEY(bucket,window_id));
 `;
 const fields=`id,username,email,tiktok,instagram,referral_source,referral_handle,profile_photo,share_location,community_enabled,community_blocked,community_keep_for_owner,last_seen,CASE WHEN share_location THEN latitude ELSE NULL END AS latitude,CASE WHEN share_location THEN longitude ELSE NULL END AS longitude,CASE WHEN share_location THEN is_spoofing ELSE false END AS is_spoofing,CASE WHEN share_location THEN location_updated_at ELSE NULL END AS location_updated_at,(app_active AND last_seen > now() - interval '45 seconds') AS is_active,false AS is_owner`;
@@ -115,8 +122,14 @@ export function createHandler(db=pool){
    await limit((b.action==='inbox'?'inbox:':'session:')+digest(token),b.action==='inbox'?180:500);
    if(b.action==='signout'){await db.query('DELETE FROM roam_sessions WHERE digest=$1',[digest(token)]);return reply(200,{ok:true});}
    if(b.action==='inbox'){
-    if(session.account_id===null)return reply(200,{messages:[]});
     const offset=Number(b.offset||0);check(Number.isSafeInteger(offset)&&offset>=0,'Invalid inbox offset.');
+    if(session.account_id===null){
+     const {rows:messages}=await db.query(`SELECT s.id,'Destination report from '||COALESCE(a.username,'Owner')||E'\\n'||s.destination||E'\\nFor: '||s.kind AS body,
+       s.created_at,s.account_id AS subject_user_id,true AS is_safety_report
+       FROM roam_safety_reports s LEFT JOIN roam_accounts a ON a.id=s.account_id
+       ORDER BY s.created_at DESC,s.id DESC LIMIT 100 OFFSET $1`,[offset]);
+     return reply(200,{messages});
+    }
     const {rows:messages}=await db.query('SELECT id,body,created_at FROM roam_messages WHERE recipient_id=$1 ORDER BY created_at DESC,id DESC LIMIT 100 OFFSET $2',[session.account_id,offset]);
     return reply(200,{messages});
    }
@@ -125,6 +138,16 @@ export function createHandler(db=pool){
     check(profile,'Account no longer available.',401);
     const messages=session.account_id?(await db.query('SELECT id,body,created_at FROM roam_messages WHERE recipient_id=$1 ORDER BY created_at DESC LIMIT 50',[session.account_id])).rows:[];
     return reply(200,{profile,messages});
+   }
+   if(b.action==='safety-submit'){
+    check(typeof b.request_id==='string'&&/^[a-f0-9-]{36}$/i.test(b.request_id),'Invalid submission request.');
+    const destination=typeof b.destination==='string'?b.destination.trim():'';
+    check(destination.length>=3&&destination.length<=1000,'Enter your actual destination (3–1,000 characters).');
+    check(['fixed','driving','walking','cycling'].includes(b.kind),'Choose a valid session type.');
+    await db.query('INSERT INTO roam_safety_reports(id,account_id,destination,kind) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING',[b.request_id,session.account_id,destination,b.kind]);
+    const {rows:[report]}=await db.query('SELECT id,destination,kind,created_at FROM roam_safety_reports WHERE id=$1 AND account_id IS NOT DISTINCT FROM $2',[b.request_id,session.account_id]);
+    check(report&&report.destination===destination&&report.kind===b.kind,'This request was already used. Start a new submission.',409);
+    return reply(200,{ok:true});
    }
    if(b.action==='presence'){
     check(session.account_id,'A user account is required.',403);
@@ -177,6 +200,17 @@ export function createHandler(db=pool){
     return reply(200,{members});
    }
    check(session.account_id===null,'Owner access required.',403);
+   if(b.action==='owner-profile'){
+    check(typeof b.id==='string'&&/^[a-f0-9-]{36}$/i.test(b.id),'Invalid account.');
+    const {rows:[profile]}=await db.query('SELECT '+fields+' FROM roam_accounts WHERE id=$1',[b.id]);
+    check(profile,'Account no longer available.',404);return reply(200,{profile});
+   }
+   if(b.action==='safety-history'){
+    check(typeof b.id==='string'&&/^[a-f0-9-]{36}$/i.test(b.id),'Invalid account.');
+    const offset=Number(b.offset||0);check(Number.isSafeInteger(offset)&&offset>=0,'Invalid offset.');
+    const {rows:reports}=await db.query('SELECT id,destination,kind,created_at FROM roam_safety_reports WHERE account_id=$1 ORDER BY created_at DESC,id DESC LIMIT 100 OFFSET $2',[b.id,offset]);
+    return reply(200,{reports});
+   }
    if(b.action==='community-remove'){
     check(typeof b.id==='string'&&/^[a-f0-9-]{36}$/i.test(b.id)&&typeof b.blocked==='boolean','Invalid community member.');
     const result=await db.query(`UPDATE roam_accounts SET community_blocked=$2,community_enabled=false,community_keep_for_owner=false,

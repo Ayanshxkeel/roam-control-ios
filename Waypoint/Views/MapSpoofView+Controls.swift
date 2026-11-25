@@ -31,11 +31,9 @@ extension MapSpoofView {
 
             HStack(spacing: 10) {
                 Button {
-                    if model.simulatedCoordinate != nil {
-                        Task { await model.startSimulation(at: selection) }
-                    } else {
-                        model.beginAdaptiveLaunch(at: selection)
-                    }
+                    pendingSpoofCoordinate = selection
+                    approvedSafetyDestination = false
+                    safetyDestinationPresented = true
                 } label: {
                     Label(primaryButtonTitle, systemImage: primaryButtonSymbol)
                         .frame(maxWidth: .infinity)

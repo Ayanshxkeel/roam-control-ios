@@ -115,6 +115,26 @@ test('cross-device sessions, owner access, messages and deletion',async()=>{
  assert.equal(new Set(pages.flat().map(x=>x.id)).size,206);
  assert.equal((await call({action:'inbox',offset:-1},b.token)).status,400);
 
+
+ const safetyID='00000000-0000-4000-8000-000000000456';
+ assert.equal((await call({action:'safety-submit',request_id:safetyID,destination:' ',kind:'fixed'},b.token)).status,400);
+ assert.equal((await call({action:'safety-submit',request_id:safetyID,destination:'QA destination',kind:'invalid'},b.token)).status,400);
+ const reportRequest={action:'safety-submit',request_id:safetyID,destination:'QA destination, shared with owner',kind:'driving'};
+ assert.equal((await call(reportRequest,b.token)).status,200);
+ assert.equal((await call(reportRequest,b.token)).status,200);
+ assert.equal((await call({...reportRequest,destination:'Changed'},b.token)).status,409);
+ const ownerReports=(await call({action:'inbox'},o.token)).messages;
+ assert.equal(ownerReports.length,1);assert.equal(ownerReports[0].subject_user_id,b.profile.id);
+ assert.equal(ownerReports[0].is_safety_report,true);assert.match(ownerReports[0].body,/QA destination/);
+ assert.equal((await call({action:'safety-history',id:b.profile.id},b.token)).status,403);
+ assert.equal((await call({action:'owner-profile',id:b.profile.id},b.token)).status,403);
+ assert.equal((await call({action:'owner-profile',id:b.profile.id},o.token)).profile.email,'b@example.test');
+ assert.equal((await call({action:'safety-history',id:b.profile.id},o.token)).reports.length,1);
+ assert.ok(!(await call({action:'inbox'},b.token)).messages.some(m=>m.is_safety_report));
+ assert.equal((await call({...reportRequest,request_id:'00000000-0000-4000-8000-000000000457'},o.token)).status,200);
+ assert.equal((await call({action:'inbox'},o.token)).messages.length,2);
+ await call({action:'delete',id:b.profile.id},o.token);
+ assert.equal((await call({action:'inbox'},o.token)).messages.length,1,'Deleting a user deletes their destination reports');
  await call({action:'signout'},o.token);assert.equal((await call({action:'list'},o.token)).status,401);
  await db.close();
 });

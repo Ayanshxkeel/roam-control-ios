@@ -83,6 +83,9 @@ extension MapSpoofView {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $safetyDestinationPresented, onDismiss: startApprovedSpoof) {
+            SafetyDestinationView(kind: "fixed") { approvedSafetyDestination = true }.environmentObject(accounts)
+        }
          .sheet(isPresented: $communityMapPresented) {
             CommunityMapView(onAccessGranted: { communityMode = true; communityBannerDismissed = false; communityPinStatusDismissed = false; communityMapPresented = false })
         }
@@ -132,6 +135,13 @@ extension MapSpoofView {
             CellularStartView()
                 .environmentObject(model)
         }
+    }
+
+    private func startApprovedSpoof() {
+        guard approvedSafetyDestination, let point = pendingSpoofCoordinate else { pendingSpoofCoordinate = nil; return }
+        approvedSafetyDestination = false; pendingSpoofCoordinate = nil
+        if model.simulatedCoordinate != nil { Task { await model.startSimulation(at: point) } }
+        else { model.beginAdaptiveLaunch(at: point) }
     }
 
     private func selectCommunityMap() {

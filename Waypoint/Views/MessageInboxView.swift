@@ -8,7 +8,7 @@ struct MessageArrivalBanner: View {
             SwipeDismissBanner(onDismiss: { withAnimation { accounts.dismissPendingAlerts() } }) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Label(accounts.unreadMessages.count == 1 ? "New message" : "\(accounts.unreadMessages.count) unread messages", systemImage: "bell.badge.fill").font(.headline)
+                        Label(message.is_safety_report == true ? "New destination report" : accounts.unreadMessages.count == 1 ? "New message" : "\(accounts.unreadMessages.count) unread messages", systemImage: "bell.badge.fill").font(.headline)
                         Spacer()
                         Button { withAnimation { accounts.dismissPendingAlerts() } } label: { Image(systemName: "xmark") }.accessibilityLabel("Dismiss message alert, keep unread")
                     }
@@ -23,11 +23,14 @@ struct MessageArrivalBanner: View {
 }
 
 struct MessageInboxView: View {
+    @State private var selectedMember: MemberProfile?
+    @State private var profileError = ""
     @EnvironmentObject private var accounts: AccountStore
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
             List {
+                if !profileError.isEmpty { Text(profileError).foregroundStyle(.orange) }
                 if !accounts.inboxError.isEmpty { Text(accounts.inboxError).foregroundStyle(.orange) }
                 if accounts.messages.isEmpty {
                     if accounts.inboxLoading { ProgressView("Loading messages…") }
@@ -35,12 +38,21 @@ struct MessageInboxView: View {
                 }
                 ForEach(accounts.messages) { message in
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("From the builder", systemImage: "person.crop.circle.badge.checkmark").font(.caption).foregroundStyle(.secondary)
+                        Label(message.is_safety_report == true ? "Destination check-in" : "From the builder", systemImage: "person.crop.circle.badge.checkmark").font(.caption).foregroundStyle(.secondary)
                         Text(message.body).textSelection(.enabled)
+                        if accounts.profile?.is_owner == true, let id = message.subject_user_id {
+                            Button("View user profile & reports") {
+                                Task {
+                                    do { selectedMember = try await accounts.fetchMember(id); profileError = "" }
+                                    catch { profileError = error.localizedDescription }
+                                }
+                            }
+                        }
                         Text(message.created_at).font(.caption2).foregroundStyle(.secondary)
                     }.padding(.vertical, 6)
                 }
             }
+            .sheet(item: $selectedMember) { member in SafetyUserProfileView(member: member).environmentObject(accounts) }
             .navigationTitle("Inbox")
             .toolbar { Button("Done") { dismiss() } }
             .task { await accounts.loadMessages(); accounts.markMessagesRead() }

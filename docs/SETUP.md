@@ -4,10 +4,10 @@ Allow time for the first setup. You will need your iPhone, a compatible computer
 
 ## 1. Download the app file
 
-On your computer, open the [Roam Control release page](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.3).
+On your computer, open the [Roam Control release page](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.4).
 
 1. Scroll to **Assets** and expand it.
-2. Download **Roam-Control-Build29.ipa**.
+2. Download **Roam-Control-Build30.ipa**.
 3. Keep it in Downloads so you can find it in the installer.
 
 The Source code ZIP and TAR files are for developers. Choose the **.ipa** file to install the app.
@@ -46,7 +46,7 @@ Using iloader on your computer:
 1. Keep the iPhone connected and unlocked.
 2. Select your iPhone in iloader.
 3. Click **Import IPA**.
-4. Choose **Roam-Control-Build29.ipa** from Downloads.
+4. Choose **Roam-Control-Build30.ipa** from Downloads.
 5. Follow the signing and installation prompts.
 6. Wait for iloader to report success.
 7. Find **Roam Control** in the iPhone’s App Library.
