@@ -5,9 +5,38 @@ import SwiftUI
 struct MapSpoofView: View {
     var openSupport: () -> Void
     @EnvironmentObject var model: AppModel
+    @EnvironmentObject var accounts: AccountStore
+    @EnvironmentObject var sharingTracker: SharedLocationTracker
+    @State var communityDidFrame = false
+    @State var mapHasUserSelection = false
+    @Environment(\.scenePhase) var phase
+    @State var communityMode = true
+    @State var communityBannerDismissed = false
+    @State var communityPinStatusDismissed = false
+    @FocusState var searchFocused: Bool
+    @State var selectedCommunityMember: UUID?
 
     @ObservedObject var pathMonitor = CellularPathMonitor.shared
+    @Namespace var mapControlScope
+    @StateObject var mapLocator = MapLocationLocator()
     @StateObject var placeSearch = PlaceSearchController()
+    @AppStorage("mapAppearance") var mapAppearance = "Standard"
+    @AppStorage("pinAppearance") var pinAppearance = "mappin.circle.fill"
+    @State var drivingPOV = false
+    @State var lastCameraPoint: CLLocationCoordinate2D?
+    @State var lookAroundPresented = false
+    @State var lookAroundFollowsCurrent = false
+    @State var lookAroundPin: SelectedCoordinate?
+    @State var routeIsActive = false
+    @State var mapOptionsPresented = false
+    @State var communityMapPresented = false
+    @State var mapPitch = 0.0
+    @State var pendingMapAction: MapOptionsView.Action?
+    @State var lastTrailUpdate = Date.distantPast
+    @State var travelledRouteLine: MKPolyline?
+    @State var pinDragOrigin: CGPoint?
+    @State var lastPinDrag = Date.distantPast
+    @State var activeBannerDismissed = false
     @State var selection: SelectedCoordinate
     @State var cameraPosition: MapCameraPosition
     @State var visibleRegion: MKCoordinateRegion
@@ -45,9 +74,19 @@ struct MapSpoofView: View {
 
     var body: some View {
         searchAwareContent
-            .onChange(of: selection) { _, coordinate in
-                Self.store(coordinate)
+            .task(id: selection) {
+                do { try await Task.sleep(for: .milliseconds(250)); Self.store(selection) } catch { }
             }
+            .onChange(of: model.simulationSessionID) { _, _ in activeBannerDismissed = false }
+            .onReceive(mapLocator.$coordinate) { point in
+                guard let point else { return }
+                zoomToCurrent(model.simulatedCoordinate ?? point)
+            }
+            .onReceive(mapLocator.$message) { text in
+                guard let text else { return }
+                model.showError(title: "Location unavailable", error: NSError(domain: "MapLocation", code: 1, userInfo: [NSLocalizedDescriptionKey: text]))
+            }
+            .onChange(of: phase) { _, phase in if phase == .background { mapLocator.cancel() } }
             .onChange(of: model.simulationEvent) { _, event in
                 show(event)
             }
@@ -70,6 +109,7 @@ struct MapSpoofView: View {
                 placeSearch.clearSuggestions()
             }
             .onDisappear {
+                mapLocator.cancel()
                 searchTask?.cancel()
                 eventDismissTask?.cancel()
                 placeSearch.cancelAll()

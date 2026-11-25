@@ -1,0 +1,12 @@
+# Build 17 map and route fixes
+
+- Pin dragging captures the original pin position in the map's stable coordinate frame and applies drag translation. Map taps shortly after a drag are ignored. Selecting a pin disables the following camera to avoid fighting the drag. Selection persistence is debounced instead of writing to UserDefaults on every gesture tick.
+- Stop & Restore clears the route and returns to fixed-pin controls after the active route task finishes. Selecting a different point while no route is running also dismisses the stale planner.
+- The map respects the top banners and bottom panel safe-area insets. A route preview automatically collapses the details panel so the fitted route has a larger visible map viewport.
+- Event banners can be dismissed with an upward swipe or close button. The ongoing spoof-status banner supports upward dismissal and an accessibility dismiss action, resetting on the next simulation session.
+- Custom symbols have no enclosing circle background. They use shadows and slight perspective for a raised appearance; these are SF Symbols, not fully modeled 3D vehicles.
+- Selected-pin Look Around captures the chosen coordinates when opened. A fresh scene is recreated on each refresh. Current-spoof Look Around reads the active simulated coordinate, keeps the route running, and requests new imagery about every 3 seconds after at least 15 metres of movement. It pauses requests while backgrounded. Failed connections retry; no nearby coverage clears the previous image instead of showing stale scenery.
+- Apple chooses available nearby camera imagery. The API does not expose its exact panorama position, so the UI labels the requested coordinates and imagery limitations instead of asserting exact-pin imagery. It is not a live camera or continuous dashcam view. Look Around requires connectivity and coverage. Current-spoof Look Around is unavailable without an active simulated location.
+
+## Device validation still required
+Install Build 17 over the existing app with the same signing account. Test dragging without jumps and map-tap interference, Stop & Restore then select/start a fixed pin, route previews at different screen sizes, drag while following camera is enabled, swipe and VoiceOver dismissal, and Look Around on selected and moving coordinates. Check that movement continues in Apple Maps while the in-app Look Around sheet is open. This build has compiler validation, not completed on-device gesture testing.

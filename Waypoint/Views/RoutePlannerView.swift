@@ -4,6 +4,9 @@ import UserNotifications
 
 struct RoutePlannerView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var collapsed = false
+    @State private var stopRequested = false
+    private let routeActivityChanged: (Bool) -> Void
     @State private var deviceTask: Task<Void, Never>?
     @State private var choosingWaitingLocation = false
 
@@ -98,8 +101,9 @@ struct RoutePlannerView: View {
 
     private let showRoute: (MKPolyline?) -> Void
 
-    init(defaultOrigin: SelectedCoordinate? = nil, defaultDestination: SelectedCoordinate, close: @escaping () -> Void, showPreviewPoint: @escaping (CLLocationCoordinate2D?) -> Void, showRoute: @escaping (MKPolyline?) -> Void) {
+    init(routeActivityChanged: @escaping (Bool) -> Void = { _ in }, defaultOrigin: SelectedCoordinate? = nil, defaultDestination: SelectedCoordinate, close: @escaping () -> Void, showPreviewPoint: @escaping (CLLocationCoordinate2D?) -> Void, showRoute: @escaping (MKPolyline?) -> Void) {
         self.close = close
+        self.routeActivityChanged = routeActivityChanged
         self.showRoute = showRoute
         self.showPreviewPoint = showPreviewPoint
         _region = State(initialValue: MKCoordinateRegion(center: defaultDestination.coreLocationCoordinate, latitudinalMeters: 30_000, longitudinalMeters: 30_000))
@@ -155,14 +159,17 @@ struct RoutePlannerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Button(action: close) {
-                Label("Route planning", systemImage: "chevron.up")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+            Button {
+                if deviceTask != nil || route != nil { withAnimation { collapsed.toggle() } } else { close() }
+            } label: {
+                HStack(spacing: 8) {
+                    Capsule().fill(.secondary.opacity(0.5)).frame(width: 36, height: 4)
+                    Image(systemName: collapsed ? "chevron.up" : "chevron.down").font(.caption2)
+                }.frame(maxWidth: .infinity).frame(height: 28)
+                    .accessibilityLabel(collapsed ? "Expand route panel" : "Collapse route panel")
             }
             .buttonStyle(.plain)
-            .disabled(deviceTask != nil)
+            if collapsed { compactStats }
             Form {
             if deviceTask == nil, let saved = interrupted {
                 Section("Interrupted route") {
@@ -366,6 +373,10 @@ struct RoutePlannerView: View {
             }
             }
             .scrollContentBackground(.hidden)
+            .frame(height: collapsed ? 0 : nil)
+            .clipped()
+            .allowsHitTesting(!collapsed)
+            .accessibilityHidden(collapsed)
             if route != nil || deviceTask != nil {
                 HStack {
                 if deviceTask != nil, confirmedStart != nil {
@@ -379,9 +390,9 @@ struct RoutePlannerView: View {
                     .buttonStyle(.bordered)
                 }
                 Button {
-                    if let deviceTask { deviceTask.cancel() }
+                    if let deviceTask { stopRequested = true; deviceTask.cancel() }
                     else if arrived {
-                        Task { await model.stopSimulation(); arrived = false }
+                        Task { await model.stopSimulation(); arrived = false; close() }
                     } else { requestDeviceRoute() }
                 } label: {
                     Text(deviceTask == nil && !arrived ? "Start \(mode.rawValue.lowercased())" : "Stop & Restore")
@@ -393,7 +404,7 @@ struct RoutePlannerView: View {
                 .padding(12)
             }
         }
-        .frame(height: 460)
+        .frame(height: collapsed ? 200 : 420)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28))
         .clipShape(RoundedRectangle(cornerRadius: 28))
         .padding(.horizontal, 8)
@@ -413,7 +424,12 @@ struct RoutePlannerView: View {
             Text("Choose the location your iPhone reports until the scheduled route starts.")
         }
         .onChange(of: searchQuery) { _, query in search.update(query: query, region: region) }
+        .onChange(of: deviceTask != nil) { _, active in routeActivityChanged(active) }
+        .onChange(of: route != nil) { _, ready in
+            if ready { collapsed = true }
+        }
         .onDisappear {
+            routeActivityChanged(false)
             deviceTask?.cancel()
             showRoute(nil)
             showPreviewPoint(nil)
@@ -431,6 +447,22 @@ struct RoutePlannerView: View {
             playbackStart = nil
             errorMessage = nil
         }
+    }
+
+    private var compactStats: some View {
+        VStack(spacing: 8) {
+            if let route {
+                ProgressView(value: confirmedProgress).tint(.cyan)
+                HStack {
+                    statistic("Speed", paused || arrived || confirmedStart == nil ? "0 km/h" : "\(Int(livePace.rounded())) km/h")
+                    statistic("Distance", String(format: "%.1f km", route.distance / 1000))
+                }
+                HStack {
+                    statistic("Time left", Duration.seconds(max(0, (confirmedStart == nil ? estimatedDuration(for: route) : confirmedDuration) * (1 - confirmedProgress))).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                    statistic("Remaining", String(format: "%.1f km", route.distance * (1 - confirmedProgress) / 1000))
+                }
+            } else { Text(deviceStatus ?? "Preparing route…") }
+        }.padding(.horizontal, 16)
     }
 
     private func statistic(_ label: String, _ value: String) -> some View {
@@ -464,6 +496,9 @@ struct RoutePlannerView: View {
         let profile = mode == .driving ? drivingRoad?.profile(offset: speedOffset, reversed: reversed) : nil
         let duration = profile?.duration ?? (customPace ? route.distance / (speed / 3.6) : route.expectedTravelTime)
         guard duration.isFinite, duration > 0 else { return }
+        let displayPoints = (0..<route.polyline.pointCount).map { route.polyline.points()[$0].coordinate }
+        showRoute(MKPolyline(coordinates: reversed ? Array(displayPoints.reversed()) : displayPoints, count: displayPoints.count))
+        stopRequested = false
         arrived = false
         paused = false
         confirmedProgress = 0
@@ -498,6 +533,7 @@ struct RoutePlannerView: View {
                 UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["route-departure"])
                 deviceTask = nil
                 playbackStart = nil
+                if stopRequested { self.route = nil; showRoute(nil); close() }
             }
             do {
                 guard let first = profile?.position(at: 0)?.0 ?? playbackCoordinate(at: start, duration: duration)

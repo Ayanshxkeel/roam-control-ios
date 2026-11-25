@@ -2,7 +2,7 @@
 
 Roam Control is an open-source iPhone app for testing location-based experiences on a device you own or control. Set a fixed location or run a simulated trip to see how an app behaves as the location changes, without physically traveling the route.
 
-**[Download the iPhone beta](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.2)** · **[Set up Roam Control](docs/SETUP.md)**
+**[Download the iPhone beta](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.3)** · **[Set up Roam Control](docs/SETUP.md)**
 
 ## Download and run on your iPhone
 
@@ -10,10 +10,10 @@ Allow time for the first setup. You will need your iPhone, a compatible computer
 
 ### 1. Download the app file
 
-On your computer, open the [Roam Control release page](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.2).
+On your computer, open the [Roam Control release page](https://github.com/Ayanshxkeel/roam-control-ios/releases/tag/v2.0.0-beta.3).
 
 1. Scroll to **Assets** and expand it.
-2. Download **Roam-Control-Accounts-Build14.ipa**.
+2. Download **Roam-Control-Build29.ipa**.
 3. Keep it in Downloads so you can find it in the installer.
 
 The Source code ZIP and TAR files are for developers. Choose the **.ipa** file to install the app.
@@ -52,7 +52,7 @@ Using iloader on your computer:
 1. Keep the iPhone connected and unlocked.
 2. Select your iPhone in iloader.
 3. Click **Import IPA**.
-4. Choose **Roam-Control-Accounts-Build14.ipa** from Downloads.
+4. Choose **Roam-Control-Build29.ipa** from Downloads.
 5. Follow the signing and installation prompts.
 6. Wait for iloader to report success.
 7. Find **Roam Control** in the iPhone’s App Library.
@@ -78,7 +78,7 @@ The account-enabled beta requires internet access to sign in and check account s
 3. Read the account and follow-policy notice before creating an account. Registration is immediate; this version does not verify email ownership or provide email password reset.
 4. Enable **Stay logged in** if you want the app to remember your session securely on this iPhone.
 5. For an existing account, select **Sign in**. Use your Roam Control credentials here, not the Apple Account used to install the IPA.
-6. The account button opens your profile and messages from the builder. Messages appear inside the app, not as lock-screen push notifications.
+6. The profile button is on the right side beneath the map controls. Its red number shows unread messages. Open **Inbox** to read them. Swiping away a message alert keeps the unread count. Messages arrive while the app is open/online or when reopened, not as lock-screen push notifications.
 
 The owner can view registered usernames, emails and submitted social handles, send private inbox messages, and permanently delete accounts across devices. Passwords are not visible to the owner. TikTok follows are not automatically checked. Owner sign-in is reserved for the builder; regular users leave that switch off.
 
@@ -151,7 +151,19 @@ Report your iOS version, installation method, connection type, and exact error i
 
 ## Accounts and owner controls
 
-Build 14 adds shared accounts hosted on Vercel and Neon, with sign-in persistence and an in-app inbox. The owner dashboard lists registered users, sends individual messages, and permanently deletes accounts and their sessions. The backend has been tested online with independent sessions; the new account UI still needs an installed-iPhone check. Owner credentials and database secrets are not included in this repository or IPA.
+Build 29 includes shared accounts hosted on Vercel and Neon, saved login, profile photos and a separate inbox. New individual and broadcast messages show a swipe-dismissable in-app alert and a red numbered profile badge. Opening the profile does not mark messages read; opening the inbox does.
+
+The owner dashboard lists users, shows recent activity, manages accounts and Community eligibility, sends individual messages, and broadcasts **Send notif** messages to current users. Live service tests confirmed delivery to a disposable recipient across independent sign-in sessions. Passwords and database secrets are not included in the repository or IPA.
+
+## Community map and map controls
+
+- **Regular map / Community map** are text tabs under the top search bar, with an animated active underline. Both use the same map and preserve route/spoofing controls.
+- Community is the default selected mode, but seeing users requires separate opt-in. Shared public pins use approximate areas, profile photos and usernames. Leaving stops community sharing; private sharing with the owner is separate.
+- The owner can see longer-lived last-known approximate community pins only after the user accepts the updated disclosure. Offline pins are labeled as last known, not live GPS.
+- Search, satellite/hybrid styles, smaller glowing pins, 2D/3D controls and recenter are supported. Map appearance, route planning and profile controls are on the right beneath recenter. Recenter uses the active spoof first, otherwise a device-reported location with permission.
+- Route previews use a compact/collapsible panel; routes are yellow with covered segments green. Look Around uses available Apple street imagery and may differ from the exact selected coordinates.
+
+**Validation:** Release compilation, backend/client regression tests and live disposable-account delivery/map tests passed. The newest UI, permission prompts and background behavior still need testing on an installed iPhone. This is a prerelease.
 
 [Account architecture, deployment and tests](docs/ACCOUNTS.md)
 

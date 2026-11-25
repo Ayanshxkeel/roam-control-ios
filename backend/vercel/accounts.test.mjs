@@ -10,25 +10,111 @@ test('cross-device sessions, owner access, messages and deletion',async()=>{
  const db=new PGlite();
  const adapter={query:async(sql,args)=>{if(!args&&sql.includes('CREATE TABLE')){await db.exec(sql);return {rows:[]};}const r=await db.query(sql,args);return {...r,rowCount:r.affectedRows};}};
  const handler=createHandler(adapter);
- async function call(body,token){let status,data;await handler({method:'POST',body,headers:{authorization:token?'Bearer '+token:'','x-vercel-forwarded-for':body.email||'local'},socket:{}},{setHeader(){},status(s){status=s;return this;},json(d){data=d;}});return {status,...data};}
+ async function call(body,token){let status,data;await handler({method:'POST',body:body.action==='signup'?{referral_source:'TikTok',referral_handle:'@qa_user',...body}:body,headers:{authorization:token?'Bearer '+token:'','x-vercel-forwarded-for':body.email||'local'},socket:{}},{setHeader(){},status(s){status=s;return this;},json(d){data=d;}});return {status,...data};}
+ assert.equal((await call({action:'signup',email:'invalid@example.test',password:'test-password',username:'Invalid',referral_source:''})).status,400);
+ assert.equal((await call({action:'signup',email:'invalid@example.test',password:'test-password',username:'Invalid',referral_handle:'@'})).status,400);
+ for (const source of ['TikTok','Instagram','LinkedIn','Resume']) {
+  const user=await call({action:'signup',email:source.toLowerCase()+'@example.test',password:'test-password',username:'Referral test',referral_source:source,referral_handle:'@valid.user'});
+  assert.equal(user.status,201);assert.equal(user.profile.referral_source,source);assert.equal(user.profile.referral_handle,'@valid.user');
+  await adapter.query('DELETE FROM roam_accounts WHERE id=$1',[user.profile.id]);
+ }
  const a=await call({action:'signup',email:'a@example.test',password:'test-password-a',username:'Alice',tiktok:'alice',is_owner:true});assert.equal(a.status,201);assert.equal(a.profile.is_owner,false);assert.ok(!('hash' in a.profile));
  const b=await call({action:'signup',email:'b@example.test',password:'test-password-b',username:'Bob'});assert.equal(b.status,201);
  assert.equal((await call({action:'signup',email:'a@example.test',password:'test-password-a',username:'Dup'})).status,409);
  assert.equal((await call({action:'signin',email:'a@example.test',password:'wrong-password'})).status,401);
  const a2=await call({action:'signin',email:'a@example.test',password:'test-password-a'});assert.equal(a2.status,200);
- for(const action of ['list','delete','message'])assert.equal((await call({action,id:b.profile.id,body:'bad'},a.token)).status,403);
+ for(const action of ['list','delete','message','broadcast'])assert.equal((await call({action,id:b.profile.id,body:'bad'},a.token)).status,403);
  assert.equal((await call({action:'signup',email:'owner@example.test',password:'test-password',username:'Fake owner'})).status,403);
  assert.equal((await call({action:'owner-signin',email:'owner@example.test',passwords:['bad','bad','bad']})).status,401);
  const o=await call({action:'owner-signin',email:'owner@example.test',passwords});assert.equal(o.status,200);assert.equal(o.profile.is_owner,true);
  assert.equal((await call({action:'list'},o.token)).members.length,2);
+ // Presence stays private unless the account explicitly enables sharing.
+ let presence=await call({action:'presence',active:true,latitude:43.6,longitude:-79.4,spoofing:true,id:b.profile.id},a.token);
+ assert.equal(presence.status,200);assert.equal(presence.profile.latitude,null);assert.equal(presence.profile.is_active,true);
+ assert.equal(presence.profile.id,a.profile.id);
+ assert.equal((await call({action:'profile-settings',share_location:true},a.token)).status,200);
+ presence=await call({action:'presence',active:true,latitude:43.6,longitude:-79.4,spoofing:true},a.token);
+ assert.equal(presence.profile.latitude,43.6);assert.equal(presence.profile.is_spoofing,true);
+ let ownerRows=(await call({action:'list'},o.token)).members;
+ assert.equal(ownerRows.find(x=>x.id===a.profile.id).latitude,43.6);
+ assert.equal((await call({action:'presence',active:true,latitude:999,longitude:1},a.token)).status,400);
+ presence=await call({action:'presence',active:true,latitude:43.7,longitude:-79.5,spoofing:false},a.token);
+ assert.equal(presence.profile.is_spoofing,false);
+ assert.equal((await call({action:'presence',active:false},a.token)).profile.is_active,false);
+ assert.ok((await call({action:'status'},a.token)).profile.last_seen);
+ await call({action:'profile-settings',share_location:false},a.token);
+ presence=await call({action:'presence',active:true,latitude:44,longitude:-80,spoofing:true},a.token);
+ assert.equal(presence.profile.latitude,null);assert.equal(presence.profile.longitude,null);assert.equal(presence.profile.is_spoofing,false);
+ assert.equal((await call({action:'profile-settings',share_location:false,profile_photo:'<svg>bad</svg>'},a.token)).status,400);
+ assert.equal((await call({action:'presence',active:true},o.token)).status,403);
+ assert.equal((await call({action:'profile-settings',share_location:true},o.token)).status,403);
+ // Public map has separate consent and strips private account details and precision.
+ assert.equal((await call({action:'community-list'},b.token)).status,403);
+ assert.equal((await call({action:'community-list'},o.token)).status,200);
+ assert.equal((await call({action:'community-settings',enabled:true},a.token)).status,200);
+ await call({action:'presence',active:true,latitude:44.123456,longitude:-79.987654,spoofing:true},a.token);
+ let publicRows=(await call({action:'community-list'},o.token)).members;
+ assert.equal(publicRows.length,1);assert.equal(publicRows[0].latitude,44.12);assert.equal(publicRows[0].longitude,-79.99);
+ assert.equal(publicRows[0].email,'');assert.equal(publicRows[0].tiktok,'');assert.equal(publicRows[0].referral_handle,undefined);
+ assert.equal((await call({action:'list'},o.token)).members.find(x=>x.id===a.profile.id).latitude,null,'Community-only consent must not expose precise location in private owner list');
+ assert.equal((await call({action:'community-remove',id:a.profile.id,blocked:true},b.token)).status,403);
+ await call({action:'community-settings',enabled:true},b.token);
+ assert.equal((await call({action:'community-list'},b.token)).members.length,1);
+ await adapter.query("UPDATE roam_accounts SET location_updated_at=now()-interval '20 minutes' WHERE id=$1",[a.profile.id]);
+ assert.equal((await call({action:'community-list'},o.token)).members.length,0,'Old consent expires for the owner too');
+ await call({action:'community-settings',enabled:true,keep_for_owner:true},a.token);
+ assert.equal((await call({action:'community-list'},o.token)).members.length,1,'Updated consent permits owner last-known view');
+ assert.equal((await call({action:'community-list'},b.token)).members.length,0,'Other members still have ten-minute expiry');
+ const loggedOut=await call({action:'signin',email:'a@example.test',password:'test-password-a'});
+ await call({action:'presence',active:false},loggedOut.token);
+ await call({action:'signout'},loggedOut.token);
+ assert.equal((await call({action:'status'},loggedOut.token)).status,401);
+ const lastKnown=(await call({action:'community-list'},o.token)).members[0];
+ assert.equal(lastKnown.id,a.profile.id);assert.equal(lastKnown.is_active,false);
+
+ await call({action:'community-remove',id:a.profile.id,blocked:true},o.token);
+ assert.equal((await call({action:'community-list'},o.token)).members.length,0);
+ assert.equal((await call({action:'community-settings',enabled:true},a.token)).status,403);
+ assert.equal((await call({action:'community-list'},a.token)).status,403);
+ await call({action:'community-remove',id:a.profile.id,blocked:false},o.token);
+ assert.equal((await call({action:'community-list'},a.token)).status,403,'Restoring eligibility must not auto-enroll');
+ await call({action:'community-settings',enabled:true},a.token);
+ await call({action:'presence',active:true,latitude:44.123456,longitude:-79.987654,spoofing:false},a.token);
+ await call({action:'community-settings',enabled:false},a.token);
+ await call({action:'presence',active:true,latitude:44.12,longitude:-79.98},a.token);
+ assert.equal((await call({action:'community-list'},o.token)).members.length,0);
+ assert.equal((await call({action:'status'},a.token)).profile.latitude,null);
+ await call({action:'community-settings',enabled:false},b.token);
+
+
+ const request_id='00000000-0000-4000-8000-000000000123';
+ assert.equal((await call({action:'broadcast',request_id,body:'   '},o.token)).status,400);
+ assert.equal((await call({action:'broadcast',request_id,body:'x'.repeat(2001)},o.token)).status,400);
+ const broadcast=await call({action:'broadcast',request_id,body:'Hello everyone'},o.token);
+ assert.equal(broadcast.status,200);assert.equal(broadcast.sent_count,2);
+ const duplicate=await call({action:'broadcast',request_id,body:'Hello everyone'},o.token);assert.equal(duplicate.sent_count,2);
+ for(const token of [a.token,b.token]) {
+  const messages=(await call({action:'status'},token)).messages;
+  assert.equal(messages.filter(m=>m.body==='Hello everyone').length,1);
+ }
+ assert.equal((await call({action:'broadcast',request_id,body:'Different message'},o.token)).status,409);
  assert.equal((await call({action:'message',id:a.profile.id,body:'Hello Alice'},o.token)).status,201);
  assert.equal((await call({action:'status'},a2.token)).messages[0].body,'Hello Alice');
- assert.equal((await call({action:'status'},b.token)).messages.length,0);
+ assert.equal((await call({action:'status'},b.token)).messages.length,1);
  assert.equal((await call({action:'delete',id:a.profile.id},o.token)).status,200);
  for(const token of [a.token,a2.token])assert.equal((await call({action:'status'},token)).status,401);
- assert.equal((await db.query('SELECT * FROM roam_messages')).rows.length,0);
+ assert.equal((await db.query('SELECT * FROM roam_messages WHERE recipient_id=$1',[a.profile.id])).rows.length,0);
  assert.equal((await call({action:'signin',email:'a@example.test',password:'test-password-a'})).status,401);
  assert.equal((await call({action:'status'},b.token)).status,200);
+ assert.equal((await call({action:'inbox'},b.token)).messages.length,1);
+ assert.equal((await call({action:'inbox'},o.token)).messages.length,0);
+ await adapter.query("INSERT INTO roam_messages(id,recipient_id,body) SELECT gen_random_uuid(),$1,'Pagination test '||n FROM generate_series(1,205) n",[b.profile.id]);
+ const pages=[];
+ for(const offset of [0,100,200])pages.push((await call({action:'inbox',offset},b.token)).messages);
+ assert.deepEqual(pages.map(x=>x.length),[100,100,6]);
+ assert.equal(new Set(pages.flat().map(x=>x.id)).size,206);
+ assert.equal((await call({action:'inbox',offset:-1},b.token)).status,400);
+
  await call({action:'signout'},o.token);assert.equal((await call({action:'list'},o.token)).status,401);
  await db.close();
 });

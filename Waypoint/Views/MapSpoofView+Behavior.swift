@@ -20,12 +20,21 @@ extension MapSpoofView {
             }
 
             Spacer(minLength: 0)
+            Button { dismissEventBanner() } label: { Image(systemName: "xmark") }.accessibilityLabel("Dismiss notification")
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 10)
         .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
-        .accessibilityElement(children: .combine)
+        .gesture(DragGesture(minimumDistance: 15).onEnded { value in
+            if value.translation.height < -25 { dismissEventBanner() }
+        })
+        .accessibilityElement(children: .contain)
+    }
+
+    func dismissEventBanner() {
+        eventDismissTask?.cancel()
+        withAnimation { displayedEvent = nil }
     }
 
     func activeBanner(_ coordinate: SelectedCoordinate) -> some View {
@@ -41,6 +50,10 @@ extension MapSpoofView {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.regularMaterial, in: Capsule())
+        .gesture(DragGesture(minimumDistance: 15).onEnded { value in
+            if value.translation.height < -25 { withAnimation { activeBannerDismissed = true } }
+        })
+        .accessibilityAction(named: "Dismiss status") { activeBannerDismissed = true }
         .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
     }
 
@@ -185,6 +198,13 @@ extension MapSpoofView {
               !model.isCellularLaunchRunning else { return }
         let value = SelectedCoordinate(coordinate)
         guard value.isValid else { return }
+        mapHasUserSelection = true
+        drivingPOV = false // Keep the camera stable while choosing or dragging a new destination.
         selection = value
+        if isRoutePlannerExpanded && !routeIsActive {
+            isRoutePlannerExpanded = false
+            plannedRouteLine = nil
+            routePreviewPoint = nil
+        }
     }
 }

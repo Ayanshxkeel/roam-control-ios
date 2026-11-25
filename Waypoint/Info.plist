@@ -87,7 +87,7 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>While spoofing, Waypoint uses low-accuracy background location activity to keep its developer connection alive when you switch apps.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Waypoint uses low-accuracy location activity only to maintain an active simulation session.</string>
+	<string>Roam Control uses location for maps. If you separately opt in, it shares your location with the app owner or your approximate location on the Community map with other members and the owner while this app is open.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
