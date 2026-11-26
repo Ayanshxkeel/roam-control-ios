@@ -217,19 +217,3 @@ For example, a tester can preview a downtown drive, add a two-minute stop, and c
 The public beta is an unsigned iPhone IPA. Installation requires a signing tool such as iloader or SideStore, Developer Mode, LocalDevVPN, and a pairing record for your own iPhone. Follow the [guided setup](docs/SETUP.md), then verify a fixed pin and **Stop & Restore** before trying a route.
 
 Compatibility and background behavior can vary by iOS version and device. Scheduled departures while the phone is locked are unverified. Speed limits can be incomplete, and the driving profile does not use live traffic signal states.
-
-## Build from source
-
-Install Xcode and XcodeGen on a Mac. From this checkout:
-
-```sh
-bash scripts/fetch-idevice.sh
-xcodegen generate
-xcodebuild -project Waypoint.xcodeproj -scheme Waypoint -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO build
-```
-
-Open the generated Xcode project and select your own signing team to build for a personal device. The pinned dependency download verifies its checksums. See [the upstream documentation](docs/UPSTREAM.md) for implementation details and [the third-party notices](THIRD_PARTY_NOTICES.md) for dependency notices.
-
-## Credits and license
-
-This is an independently maintained fork of [WaypointApp by raph559](https://github.com/raph559/WaypointApp), licensed under the [GNU AGPL v3.0](LICENSE). This project is unaffiliated with the separately developed app of the same name.
