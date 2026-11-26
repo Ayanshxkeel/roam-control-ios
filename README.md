@@ -18,6 +18,33 @@ On your computer, open the [Roam Control release page](https://github.com/Ayansh
 
 The Source code ZIP and TAR files are for developers. Choose the **.ipa** file to install the app.
 
+### Download and open iloader on Windows
+
+You can install Roam Control on an iPhone using a Windows laptop; no Mac is needed for installation. Roam Control runs on the iPhone, while iloader on Windows signs and installs it. Use the same **Roam-Control-Build30.ipa** linked above. The Windows-to-iPhone process follows the official tools’ supported setup; it has not yet been tested end to end by this project on Windows hardware.
+
+1. Use a supported 64-bit Windows computer. The [official Windows prerequisites](https://docs.sidestore.io/docs/installation/prerequisites.html) exclude 32-bit Windows and Windows 10 on ARM. Roam Control itself requires iOS 17.4 or later.
+2. Install iTunes using the Apple download link in those prerequisites. It supplies Apple’s device-connection software. If your iPhone is not detected, the guide also suggests Apple Devices as an alternative.
+3. Download the [official iloader Windows installer (.msi)](https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.msi). The [official release page](https://github.com/nab138/iloader/releases/latest) also offers an EXE; choose one installer, not both. Do not download the Mac DMG or source-code ZIP.
+4. Open **File Explorer → Downloads**, double-click **iloader-windows-x64.msi**, and finish the installer. Open **iloader** from the Start menu.
+5. Connect your iPhone with a USB cable that supports data, unlock it, and approve **Trust This Computer** on the phone. Enter the phone’s passcode if requested.
+6. Confirm iloader lists your iPhone. Sign in to your Apple Account inside iloader and enter verification codes there when prompted. This is separate from your Roam Control account.
+7. Select your iPhone and choose **Install SideStore (Stable)**. Continue with **2. Install SideStore and prepare this iPhone** below to complete trust, Developer Mode, LocalDevVPN, SideStore sign-in and its first refresh.
+8. Return to iloader, select the same phone, click **Import IPA**, and choose **Roam-Control-Build30.ipa** from Downloads. Wait for installation to finish.
+9. Open Roam Control on the iPhone, sign up or sign in, and follow **5. Connect LocalDevVPN** and **6. Import this iPhone’s pairing record** below. **Import with SideStore** transfers the record on the phone; you do not need AirDrop or a Mac-generated file.
+10. Complete the fixed-pin and **Stop & Restore** test below before starting a moving route. Submit the destination check-in while internet is available, before any airplane-mode handoff prompts.
+
+Keep Wi-Fi and LocalDevVPN connected when installing or refreshing apps in SideStore. Refresh before the displayed signing expiry; free-account signing generally lasts seven days. The laptop is not the route-playback controller: after setup, movement is controlled on the iPhone. Reconnect a computer if reinstalling or repairing pairing is necessary.
+
+#### Windows troubleshooting
+
+| Problem | What to do |
+| --- | --- |
+| iloader does not list the phone | Unlock the phone, reconnect it, approve Trust, try another data-capable cable/USB port, and confirm iTunes or Apple Devices recognizes it. Complete Apple’s driver installation before retrying iloader. |
+| Downloaded a DMG | That is the Mac installer. Download the Windows MSI linked above. |
+| IPA will not open on Windows | Open iloader and use **Import IPA**. The IPA is installed onto the iPhone, not run on Windows. |
+| Apple Account sign-in fails | Check the exact error against [iloader’s official support resources](https://github.com/nab138/iloader). A server/authentication error does not necessarily mean the password is wrong. Never post passwords, verification codes or pairing files. |
+| Pairing is missing or invalid | Finish SideStore’s setup and refresh, then use **Import with SideStore** in Roam Control. Pairing must belong to this exact iPhone; resets or updates can require a replacement. |
+
 ### Download and open iloader on your Mac
 
 1. Click the [official iloader Mac installer download](https://github.com/nab138/iloader/releases/latest/download/iloader-darwin-universal.dmg).
@@ -29,7 +56,7 @@ The Source code ZIP and TAR files are for developers. Choose the **.ipa** file t
 7. If macOS asks whether to open the downloaded app, click **Open**. If a different security message appears, check the [official iloader instructions](https://github.com/nab138/iloader#readme).
 8. If iloader offers an update, install it and reopen iloader.
 
-For Windows or Linux, select the appropriate installer from the [official iloader releases page](https://github.com/nab138/iloader/releases).
+For Linux, select the appropriate installer from the [official iloader releases page](https://github.com/nab138/iloader/releases).
 
 ### 2. Install SideStore and prepare this iPhone
 
@@ -74,7 +101,7 @@ If Developer Mode is absent, complete the developer-app installation and check t
 The account-enabled beta requires internet access to sign in and check account status.
 
 1. Open Roam Control after trusting the installation.
-2. Select **Sign up** and enter a username, email, and a password of at least eight characters. TikTok and Instagram handles are optional.
+2. Select **Sign up** and enter a username, email, and a password of at least eight characters. Choose how you heard about the app and enter the requested social handle.
 3. Read the account and follow-policy notice before creating an account. Registration is immediate; this version does not verify email ownership or provide email password reset.
 4. Enable **Stay logged in** if you want the app to remember your session securely on this iPhone.
 5. For an existing account, select **Sign in**. Use your Roam Control credentials here, not the Apple Account used to install the IPA.
@@ -107,7 +134,7 @@ The setup screen shows **Pairing Record**, **LocalDevVPN**, and **Developer Supp
 ### 7. Try a fixed location first
 
 1. Search for a place or drop a pin on the map.
-2. Tap **Start location**.
+2. Tap **Start location** and submit the destination check-in while online. It explains that your entered actual destination is shared privately with the owner; Cancel does not start the spoof.
 3. Wait for the active simulation status.
 4. Check the location in Apple Maps on the same iPhone.
 5. Return to Roam Control and tap **Stop & Restore**.
@@ -123,7 +150,7 @@ If the fixed pin fails, resolve setup before starting a moving route.
 4. Choose **Driving**, **Walking**, or **Cycling**.
 5. Set the departure time and review the speed settings.
 6. Tap **Preview route** and inspect the route on the map.
-7. Tap **Start driving**, **Start walking**, or **Start cycling**.
+7. Tap **Start driving**, **Start walking**, or **Start cycling**, then submit the destination check-in while online.
 8. For a future departure, choose **Keep my real location** or **Hold the route origin**.
 9. Use **Pause / Resume** during playback or **Stop & Restore** to end it.
 
